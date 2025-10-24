@@ -4,6 +4,7 @@ import { useState } from "react"
 import HeroSection from "@/components/hero-section"
 import LoginPage from "@/components/auth/login-page"
 import SignupPage from "@/components/auth/signup-page"
+import Dashboard from "@/components/dashboard/dashboard"
 
 
 export default function Home() {
