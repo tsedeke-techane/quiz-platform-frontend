@@ -1,6 +1,9 @@
 "use client"
 
 import { useState } from "react"
+import HeroSection from "@/components/hero-section"
+import LoginPage from "@/components/auth/login-page"
+import SignupPage from "@/components/auth/signup-page"
 
 
 export default function Home() {
