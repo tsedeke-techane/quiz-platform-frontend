@@ -1,86 +1,88 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import QuizQuestion from "../quiz/quiz-question"
-import { QUIZZES } from "@/lib/quiz-data"
+import { startAttempt, submitAttempt } from "@/lib/api"
 
 interface QuizTakingProps {
   quizId: string
-  onComplete: (results: any) => void
+  onComplete: (results: { quizTitle: string; score: number; totalQuestions: number; timeSpent: number }) => void
   onBack: () => void
 }
 
 export default function QuizTaking({ quizId, onComplete, onBack }: QuizTakingProps) {
-  const quiz = QUIZZES.find((q) => q.id === quizId)
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0)
   const [answers, setAnswers] = useState<Record<number, number>>({})
   const [timeLeft, setTimeLeft] = useState(300)
   const [isComplete, setIsComplete] = useState(false)
-  const [shuffledQuestions, setShuffledQuestions] = useState<any[]>([])
+  const [submitted, setSubmitted] = useState(false)
+  const [questions, setQuestions] = useState<Array<{ id: string; question: string; options: string[] }>>([])
+  const [attemptId, setAttemptId] = useState<string | null>(null)
+  const [quizTitle, setQuizTitle] = useState<string>("Quiz")
   const [startTime] = useState(Date.now())
 
+  // Start attempt and fetch title
   useEffect(() => {
-    if (quiz) {
-      const shuffled = [...quiz.questions]
-        .map((q) => {
-          const optionsWithIndices = q.options.map((opt, idx) => ({ opt, idx }))
-          const shuffledOptions = optionsWithIndices.sort(() => Math.random() - 0.5)
+    const token = localStorage.getItem("authToken") || ""
+    startAttempt(quizId, token)
+      .then((data) => {
+        setAttemptId(data.attemptId)
+        setTimeLeft(data.timeLimit || 300)
+        setQuestions(data.questions)
+      })
+      .catch(() => {
+        onBack()
+      })
 
-          return {
-            ...q,
-            options: shuffledOptions.map((o) => o.opt),
-            originalCorrectIndex: shuffledOptions.findIndex((o) => o.opt === q.correctAnswer),
-          }
-        })
-        .sort(() => Math.random() - 0.5)
+    const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"
+    fetch(`${API_BASE}/api/quizzes/${quizId}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((q) => q && setQuizTitle(q.title))
+      .catch(() => {})
+  }, [quizId, onBack])
 
-      setShuffledQuestions(shuffled)
-    }
-  }, [quiz])
-
+  // Countdown
   useEffect(() => {
     if (timeLeft <= 0) {
       setIsComplete(true)
       return
     }
-
-    const timer = setInterval(() => {
-      setTimeLeft((prev) => prev - 1)
-    }, 1000)
-
+    const timer = setInterval(() => setTimeLeft((prev) => prev - 1), 1000)
     return () => clearInterval(timer)
   }, [timeLeft])
 
+  // Submit once when complete
   useEffect(() => {
-    if (isComplete && shuffledQuestions.length > 0) {
-      const score = Object.entries(answers).filter(
-        ([index, answerIndex]) =>
-          shuffledQuestions[Number.parseInt(index)].options[answerIndex] ===
-          shuffledQuestions[Number.parseInt(index)].correctAnswer,
-      ).length
+    if (!isComplete || submitted || !attemptId || questions.length === 0) return
+    const timeSpent = Math.floor((Date.now() - startTime) / 1000)
+    const token = localStorage.getItem("authToken") || ""
+    const answerArray = Object.entries(answers).map(([idx, selected]) => ({
+      questionId: questions[Number(idx)].id,
+      selectedAnswerIndex: Number(selected),
+    }))
 
-      const timeSpent = Math.floor((Date.now() - startTime) / 1000)
-
-      onComplete({
-        quizTitle: quiz?.title,
-        score,
-        totalQuestions: shuffledQuestions.length,
-        timeSpent,
+    submitAttempt(attemptId, answerArray, token, timeSpent)
+      .then((r) => {
+        setSubmitted(true)
+        onComplete({ quizTitle, score: r.score, totalQuestions: r.totalQuestions, timeSpent })
       })
-    }
-  }, [isComplete, shuffledQuestions, answers, onComplete, quiz?.title, startTime])
+      .catch(() => {
+        setSubmitted(true)
+        onComplete({ quizTitle, score: 0, totalQuestions: questions.length, timeSpent })
+      })
+  }, [isComplete, submitted, attemptId, questions, answers, startTime, quizTitle, onComplete])
 
-  if (!quiz || shuffledQuestions.length === 0) {
+  if (questions.length === 0) {
     return <div>Loading...</div>
   }
 
   if (isComplete) {
-    return null
+    return <div>Submitting results...</div>
   }
 
-  const currentQuestion = shuffledQuestions[currentQuestionIndex]
+  const currentQuestion = questions[currentQuestionIndex]
   const minutes = Math.floor(timeLeft / 60)
   const seconds = timeLeft % 60
 
@@ -88,18 +90,17 @@ export default function QuizTaking({ quizId, onComplete, onBack }: QuizTakingPro
     id: currentQuestionIndex,
     text: currentQuestion.question,
     options: currentQuestion.options,
-    correctAnswer: currentQuestion.originalCorrectIndex,
   }
 
   const handleAnswer = (answerIndex: number) => {
-    setAnswers({
-      ...answers,
+    setAnswers((prev) => ({
+      ...prev,
       [currentQuestionIndex]: answerIndex,
-    })
+    }))
   }
 
   const handleNext = () => {
-    if (currentQuestionIndex < shuffledQuestions.length - 1) {
+    if (currentQuestionIndex < questions.length - 1) {
       setCurrentQuestionIndex(currentQuestionIndex + 1)
     } else {
       setIsComplete(true)
@@ -116,7 +117,7 @@ export default function QuizTaking({ quizId, onComplete, onBack }: QuizTakingPro
     <div className="max-w-2xl mx-auto space-y-6">
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle>{quiz.title}</CardTitle>
+          <CardTitle>{quizTitle}</CardTitle>
           <div className={`text-2xl font-bold ${timeLeft < 60 ? "text-red-600" : ""}`}>
             {minutes}:{seconds.toString().padStart(2, "0")}
           </div>
@@ -128,13 +129,13 @@ export default function QuizTaking({ quizId, onComplete, onBack }: QuizTakingPro
           <div className="mb-6">
             <div className="flex justify-between items-center mb-2">
               <span className="text-sm font-medium">
-                Question {currentQuestionIndex + 1} of {shuffledQuestions.length}
+                Question {currentQuestionIndex + 1} of {questions.length}
               </span>
               <div className="w-32 h-2 bg-gray-200 rounded-full overflow-hidden">
                 <div
                   className="h-full bg-blue-600 transition-all"
                   style={{
-                    width: `${((currentQuestionIndex + 1) / shuffledQuestions.length) * 100}%`,
+                    width: `${((currentQuestionIndex + 1) / questions.length) * 100}%`,
                   }}
                 />
               </div>
@@ -152,7 +153,7 @@ export default function QuizTaking({ quizId, onComplete, onBack }: QuizTakingPro
               Previous
             </Button>
             <Button onClick={handleNext} className="flex-1">
-              {currentQuestionIndex === shuffledQuestions.length - 1 ? "Finish" : "Next"}
+              {currentQuestionIndex === questions.length - 1 ? "Finish" : "Next"}
             </Button>
           </div>
         </CardContent>

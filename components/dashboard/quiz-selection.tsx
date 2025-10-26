@@ -1,7 +1,8 @@
 "use client"
-import { QUIZZES } from "@/lib/quiz-data"
+import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { BookOpen, Clock } from "lucide-react"
+import { getQuizzes } from "@/lib/api"
 
 interface QuizSelectionProps {
   onSelectQuiz: (quizId: string) => void
@@ -9,6 +10,13 @@ interface QuizSelectionProps {
 }
 
 export default function QuizSelection({ onSelectQuiz, onBack }: QuizSelectionProps) {
+  const [quizzes, setQuizzes] = useState<any[]>([])
+
+  useEffect(() => {
+    getQuizzes()
+      .then((data) => setQuizzes(data))
+      .catch(() => setQuizzes([]))
+  }, [])
   return (
     <div>
       <button
@@ -24,13 +32,13 @@ export default function QuizSelection({ onSelectQuiz, onBack }: QuizSelectionPro
       </div>
 
       <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {QUIZZES.map((quiz) => (
+        {quizzes.map((quiz) => (
           <div
             key={quiz.id}
             className="border border-gray-200 rounded-lg p-6 bg-white hover:shadow-lg transition-all duration-300 cursor-pointer flex flex-col justify-between"
           >
             {/* Icon */}
-            <div className="text-5xl mb-4">{quiz.icon}</div>
+            <div className="text-5xl mb-4">📝</div>
 
             {/* Title */}
             <h3 className="text-xl font-bold text-gray-900 mb-2">{quiz.title}</h3>
@@ -42,11 +50,11 @@ export default function QuizSelection({ onSelectQuiz, onBack }: QuizSelectionPro
             <div className="flex items-center justify-between mb-6 text-gray-500 text-sm">
               <div className="flex items-center gap-1">
                 <BookOpen className="w-4 h-4" />
-                <span>{quiz.questions.length} questions</span>
+                <span>{quiz.questions?.length ?? 0} questions</span>
               </div>
               <div className="flex items-center gap-1">
                 <Clock className="w-4 h-4" />
-                <span>{quiz.timeLimit} min</span>
+                <span>{Math.round((quiz.timeLimit || 300) / 60)} min</span>
               </div>
             </div>
 

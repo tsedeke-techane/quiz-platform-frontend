@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 
 interface SignupPageProps {
-  onSignup: (email: string, name: string) => void
+  onSignup: (email: string, name: string, password: string) => Promise<void> | void
   onSwitchToLogin: () => void
 }
 
@@ -18,10 +18,10 @@ export default function SignupPage({ onSignup, onSwitchToLogin }: SignupPageProp
   const [password, setPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (name && email && password && password === confirmPassword) {
-      onSignup(email, name)
+      await onSignup(email, name, password)
     }
   }
 

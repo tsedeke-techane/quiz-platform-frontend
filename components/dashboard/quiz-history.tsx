@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
+import { getMyAttempts } from "@/lib/api"
 
 interface QuizHistoryProps {
   onBack: () => void
@@ -12,10 +13,23 @@ export default function QuizHistory({ onBack }: QuizHistoryProps) {
   const [historyData, setHistoryData] = useState<any[]>([])
 
   useEffect(() => {
-    const savedHistory = localStorage.getItem("quizHistory")
-    if (savedHistory) {
-      setHistoryData(JSON.parse(savedHistory))
-    }
+    const token = localStorage.getItem("authToken") || ""
+    if (!token) return
+    getMyAttempts(token)
+      .then((data) => {
+        const formatted = data.map((a) => ({
+          id: a.id,
+          quizTitle: a.quizTitle,
+          score: a.score,
+          totalQuestions: a.totalQuestions,
+          date: a.createdAt,
+          time: `${Math.floor((a.timeSpent || 0) / 60)}:${((a.timeSpent || 0) % 60)
+            .toString()
+            .padStart(2, "0")}`,
+        }))
+        setHistoryData(formatted)
+      })
+      .catch(() => setHistoryData([]))
   }, [])
 
   const calculatePercentage = (score: number, total: number) => {

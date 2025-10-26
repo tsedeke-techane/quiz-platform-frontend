@@ -28,19 +28,6 @@ export default function Dashboard() {
   }
 
   const handleQuizComplete = (results: any) => {
-    const existingHistory = JSON.parse(localStorage.getItem("quizHistory") || "[]")
-    const newResult = {
-      id: Date.now().toString(),
-      quizTitle: results.quizTitle,
-      score: results.score,
-      totalQuestions: results.totalQuestions,
-      date: new Date().toISOString(),
-      time: `${Math.floor(results.timeSpent / 60)}:${(results.timeSpent % 60).toString().padStart(2, "0")}`,
-    }
-
-    existingHistory.unshift(newResult)
-    localStorage.setItem("quizHistory", JSON.stringify(existingHistory))
-
     setLastResults(results)
     setCurrentPage("results")
   }
@@ -60,6 +47,7 @@ export default function Dashboard() {
         user={user}
         onLogout={() => {
           localStorage.removeItem("currentUser")
+          localStorage.removeItem("authToken")
           window.location.reload()
         }}
       />

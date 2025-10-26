@@ -10,7 +10,7 @@ interface HeaderProps {
 export default function Header({ user, onLogout }: HeaderProps) {
   const [showDropdown, setShowDropdown] = useState(false)
 
-  const firstName = user?.name?.split(" ")[0] || "Tsedeke"
+  const firstName = user?.name?.split(" ")[0] || "User"
   const initials =
     user?.name
       ?.split(" ")

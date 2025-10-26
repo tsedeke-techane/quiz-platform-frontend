@@ -8,7 +8,7 @@ interface Question {
   text: string
   mathText?: string
   options: string[]
-  correctAnswer: number
+  correctAnswer?: number
 }
 
 interface QuizQuestionProps {
